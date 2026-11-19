@@ -7,6 +7,8 @@
 - 語法檢查：`cd app && node -e "for (const f of ['main.js','speech.js','scenes.js','book.js']) new Function(require('fs').readFileSync(f,'utf8'))"`
 - 除錯：主控台 `PBR.goPage(i)`、`PBR.setScene('owlwake')`；長按右上齒輪 1 秒開家長設定，有「假裝小孩說」可測評分
 
+- 部署：commit 後 `sh tools/deploy.sh`（app/ → gh-pages 分支）；網址 https://christinetai-wc.github.io/picture-book-reader/
+
 ## 結構
 - `source/` 三本原書 PDF（掃描檔，無文字層）；`ref/` 天黑了逐頁參考圖
 - `app/index.html`、`style.css`
@@ -24,6 +26,8 @@
 - UI 文字繁中；按鈕用圖示，小孩不用識字
 
 ## 地雷
+- gh 登入沒有 workflow 權限，不能推 .github/workflows；所以用 gh-pages 分支發布，不用 Actions
+- source/、ref/ 是原書掃描，.gitignore 排除，不要公開
 - 語音辨識需要 https 或 localhost；iPad Safari 要開「Siri 與聽寫」
 - Claude artifact 的 dictation 只支援 Chromium，iPad 不能用，所以不要發布成 artifact
 - iOS 第一次發聲要在使用者點擊裡（封面開始鈕負責解鎖）
