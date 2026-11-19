@@ -1,0 +1,6 @@
+# 原書掃描檔與參考圖不公開（只公開重畫後的網頁）
+source/
+ref/
+# Gemini 原始整段 wav（切好的句子在 app/audio/）
+audio/gemini/
+.DS_Store

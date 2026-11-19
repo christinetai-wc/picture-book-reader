@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1838">
+<title>天黑了</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="cover">
+<div id="app">
+  <div id="stageWrap">
+    <canvas id="stage" aria-label="插畫"></canvas>
+    <div id="fx" aria-hidden="true"></div>
+    <div id="coverTitle">天黑了</div>
+    <button id="home" class="corner left" aria-label="回封面">
+      <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h5v-5.5h3V20h5V9.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="gear" class="corner right" aria-label="家長設定（長按）">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div id="panel">
+    <div id="dots"></div>
+    <p id="sentence" lang="zh-Hant"></p>
+    <div id="heard" aria-live="polite"></div>
+    <div id="controls">
+      <button id="replay" class="round small" aria-label="再聽一次">
+        <svg viewBox="0 0 24 24"><path d="M4 9.5h4l5-4v13l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="mic" class="round big" aria-label="換你念">
+        <svg viewBox="0 0 24 24"><rect x="8.5" y="3" width="7" height="12" rx="3.5" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="next" class="round small" aria-label="下一頁" hidden>
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div id="coverControls">
+      <button id="start" class="round big play" aria-label="開始讀">
+        <svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <div id="endControls">
+      <p class="endText">讀完了！</p>
+      <button id="again" class="round small" aria-label="再讀一次">
+        <svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v4h4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<dialog id="settings">
+  <h2>家長設定</h2>
+  <label>過關門檻 <b id="vThreshold"></b><input id="setThreshold" type="range" min="40" max="100" step="5"></label>
+  <label>最多試幾次就讓他過 <b id="vTries"></b><input id="setTries" type="range" min="1" max="6" step="1"></label>
+  <label>示範語速（沒有音檔時）<b id="vRate"></b><input id="setRate" type="range" min="0.5" max="1.2" step="0.05"></label>
+  <label>跳到<select id="jump"><option value="" selected disabled>選一頁</option><option value="-1">封面</option></select></label>
+  <form id="simForm"><label>測試：假裝小孩說<input id="simText" placeholder="例如：太陽下山天黑了"></label><button>送出</button></form>
+  <p id="srNote" class="note"></p>
+  <button id="closeSettings">關閉</button>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
+<script src="book.js"></script>
+<script src="clips.js" onerror="0"></script>
+<script src="scenes.js"></script>
+<script src="speech.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
