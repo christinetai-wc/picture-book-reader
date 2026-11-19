@@ -1,5 +1,10 @@
 # DEVLOG
 
+### 2026-11-20 發布到 GitHub Pages
+- 公開 repo christinetai-wc/picture-book-reader，app/ 用 gh-pages 分支發布（tools/deploy.sh）
+- 原書掃描檔（source/、ref/）和原始 wav 不上傳
+- 繼續用瀏覽器辨識，不做 Gemini 判讀，所以不需要後端
+
 ### 2026-11-19 最後一頁改回整句
 - 「因為貓頭鷹一找到小老鼠，就會把牠給吃了」不再拆兩段：這本在練整句句型
 - 音稿合併成一行，音檔重切成 14 句
