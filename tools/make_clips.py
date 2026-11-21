@@ -1,6 +1,7 @@
 """把 Gemini 整段 wav 切成每句 m4a，並用 Whisper 逐字時間產生 app/clips-<書>.js。
-用法：python tools/make_clips.py <書 id> audio/gemini/<書 id>.wav whisper.json
-句子順序讀 audio/gemini-script-<書 id>.md（「媽媽：」這類說話者前綴會去掉）
+用法：~/venvs/myenv/bin/python tools/make_clips.py <書 id> audio/gemini/<書 id>.wav whisper.json（需要 pypinyin）
+句子讀 audio/gemini-script-<書 id>.md（「媽媽：」這類說話者前綴會去掉）。
+Gemini 多人配音有時會打亂順序、多加「嗯」「哦」，所以每句是照「讀音」在整段裡找位置，不靠順序。
 whisper.json 由：whisper X.wav --model large-v3-turbo --language zh --word_timestamps True --output_format json
 """
 import json, re, subprocess, sys
@@ -29,8 +30,53 @@ out = subprocess.run(['ffmpeg', '-hide_banner', '-i', wav, '-af', 'silencedetect
 sil_end = [float(x) for x in re.findall(r'silence_end: ([\d.]+)', out)]
 sil_start = [float(x) for x in re.findall(r'silence_start: ([\d.]+)', out)]
 
-need = sum(len(han(l)) for l in LINES)
-assert need == len(chars), f'字數不合：稿 {need}、Whisper {len(chars)}'
+from pypinyin import lazy_pinyin
+def syl(c):
+    p = lazy_pinyin(c)[0]
+    for a, b in (('zh', 'z'), ('ch', 'c'), ('sh', 's')):
+        if p.startswith(a): p = b + p[2:]
+    if p.startswith('n') and not p.startswith('ng'): p = 'l' + p[1:]
+    return p.replace('ing', 'in').replace('eng', 'en')
+CS = [syl(c[0]) for c in chars]
+
+def align(T, lo, hi, used):
+    """T 的每個字對到 chars[lo:hi] 的哪個位置（LCS，回溯時盡量取後面的，讓重複的字不會往前多抓）。"""
+    ts = [syl(c) for c in T]; seg = list(range(lo, hi))
+    n, m = len(T), len(seg)
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            ok = (not used[seg[j - 1]]) and ts[i - 1] == CS[seg[j - 1]]
+            dp[i][j] = dp[i - 1][j - 1] + 1 if ok else max(dp[i - 1][j], dp[i][j - 1])
+    hit = [None] * n; i, j = n, m
+    while i and j:
+        ok = (not used[seg[j - 1]]) and ts[i - 1] == CS[seg[j - 1]]
+        if ok and dp[i][j] == dp[i - 1][j - 1] + 1: hit[i - 1] = seg[j - 1]; i -= 1; j -= 1
+        elif dp[i - 1][j] >= dp[i][j - 1]: i -= 1
+        else: j -= 1
+    return dp[n][m], hit
+
+used = [False] * len(chars); groups = [None] * len(LINES)
+for li in sorted(range(len(LINES)), key=lambda k: -len(han(LINES[k]))):
+    T = han(LINES[li]); best = None
+    for lo in range(len(chars)):
+        sc, hit = align(T, lo, min(len(chars), lo + len(T) + 3), used)
+        idx = [h for h in hit if h is not None]
+        if not idx: continue
+        key = (sc, -(idx[-1] - idx[0]))
+        if best is None or key > best[0]: best = (key, hit)
+    hit = best[1]; idx = [h for h in hit if h is not None]
+    for h in range(idx[0], idx[-1] + 1): used[h] = True
+    # 沒對到的字：用前後對到的字估時間
+    tm = [chars[h][1] if h is not None else None for h in hit]
+    known = [k for k, v in enumerate(tm) if v is not None]
+    for k in range(len(tm)):
+        if tm[k] is None:
+            prev = max([q for q in known if q < k], default=None); nxt = min([q for q in known if q > k], default=None)
+            tm[k] = tm[prev] + 0.2 * (k - prev) if prev is not None else tm[nxt]
+    groups[li] = [(T[k], tm[k], chars[hit[k]][2] if hit[k] is not None else tm[k] + 0.2) for k in range(len(T))]
+    groups[li] = [(c, s0, chars[idx[-1]][2] if k == len(T) - 1 else e) for k, (c, s0, e) in enumerate(groups[li])]
+    print(f'{LINES[li]}  對到 {best[0][0]}/{len(T)}  {chars[idx[0]][1]:.2f}-{chars[idx[-1]][2]:.2f}')
 
 clips_dir = ROOT / 'app/audio' / BOOK; clips_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,10 +85,7 @@ def line_start(cs):
     se = [e for e in sil_end if first - 0.8 < e <= cs[0][2]]
     return max(first, se[-1]) if se else first
 
-groups, k = [], 0
-for line in LINES:
-    groups.append(chars[k:k + len(han(line))]); k += len(han(line))
-starts = [line_start(g) for g in groups] + [1e9]
+starts = [line_start(g) for g in groups]
 clips = {}
 for n, line in enumerate(LINES, 1):
     cs = groups[n - 1]; t0 = starts[n - 1]
@@ -50,13 +93,14 @@ for n, line in enumerate(LINES, 1):
     ss = [s for s in sil_start if last - 0.3 <= s < last + 0.6]
     t1 = ss[0] if ss else last
     a, b = max(0, t0 - 0.08), t1 + 0.4  # 尾巴多留一點，免得最後一個字的尾音被切
-    b = min(b, starts[n] - 0.12)  # 但不能吃到下一句的開頭
+    later = [x for x in starts if x > t0 + 0.05]
+    b = min(b, min(later, default=1e9) - 0.12)  # 但不能吃到音檔裡下一句的開頭
     name = f'{n:02d}.m4a'
     subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', wav, '-ss', f'{a:.3f}', '-to', f'{b:.3f}',
                     '-af', 'afade=t=in:d=0.03', '-c:a', 'aac', '-b:a', '96k', str(clips_dir / name)], check=True)
     times = [round(max(0, max(c[1], t0) - a), 2) for c in cs]
     clips[''.join(han(line))] = {'src': f'audio/{BOOK}/' + name, 'times': times}
-    print(n, line, f'{a:.2f}-{b:.2f}', times[:4], '…')
+    print(n, line, f'{a:.2f}-{b:.2f}')
 
 (ROOT / f'app/clips-{BOOK}.js').write_text('// 由 tools/make_clips.py 產生，不要手改\nObject.assign(window.CLIPS, ' +
                                     json.dumps(clips, ensure_ascii=False, indent=1) + ');\n')

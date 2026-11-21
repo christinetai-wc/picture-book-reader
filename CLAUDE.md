@@ -20,7 +20,7 @@
 - `app/main.js` 流程狀態機：cover → demo → turn → listening → result → 下一段／下一頁 → end
 - `app/clips-<書>.js`（key＝去標點的句子）、`app/audio/<書>/NN.m4a`：由 `tools/make_clips.py <書>` 產生，不要手改
 - `audio/gemini-script-<書>.md` 給 AI Studio 的音稿（make_clips 也從這裡讀句子順序）；`audio/gemini/<書>.wav` 原始 wav
-- 重切音檔：先 `~/venvs/myenv/bin/whisper audio/gemini/X.wav --model large-v3-turbo --language zh --word_timestamps True --output_format json --output_dir <暫存>`，再 `python3 tools/make_clips.py <書> audio/gemini/<書>.wav <暫存>/<書>.json`
+- 重切音檔：先 `~/venvs/myenv/bin/whisper audio/gemini/X.wav --model large-v3-turbo --language zh --word_timestamps True --output_format json --output_dir <暫存>`，再 `~/venvs/myenv/bin/python tools/make_clips.py <書> audio/gemini/<書>.wav <暫存>/<書>.json`
 
 ## 慣例
 - 邏輯座標 1200×840（10:7），所有場景用這個座標
