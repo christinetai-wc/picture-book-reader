@@ -1,7 +1,7 @@
 // 由 tools/make_clips.py 產生，不要手改
-window.CLIPS = {
+Object.assign(window.CLIPS, {
  "天黑了": {
-  "src": "audio/01.m4a",
+  "src": "audio/tianhei/01.m4a",
   "times": [
    0,
    0.48,
@@ -9,7 +9,7 @@ window.CLIPS = {
   ]
  },
  "太陽一下山天就黑了": {
-  "src": "audio/02.m4a",
+  "src": "audio/tianhei/02.m4a",
   "times": [
    0.08,
    0.27,
@@ -23,7 +23,7 @@ window.CLIPS = {
   ]
  },
  "天一黑月亮就出來了": {
-  "src": "audio/03.m4a",
+  "src": "audio/tianhei/03.m4a",
   "times": [
    0.08,
    0.32,
@@ -37,7 +37,7 @@ window.CLIPS = {
   ]
  },
  "月亮一出來貓頭鷹就醒了": {
-  "src": "audio/04.m4a",
+  "src": "audio/tianhei/04.m4a",
   "times": [
    0.08,
    0.25,
@@ -53,7 +53,7 @@ window.CLIPS = {
   ]
  },
  "貓頭鷹一醒小老鼠就躲起來了": {
-  "src": "audio/05.m4a",
+  "src": "audio/tianhei/05.m4a",
   "times": [
    0.08,
    0.28,
@@ -71,7 +71,7 @@ window.CLIPS = {
   ]
  },
  "因為貓頭鷹一找到小老鼠就會把牠給吃了": {
-  "src": "audio/06.m4a",
+  "src": "audio/tianhei/06.m4a",
   "times": [
    0.08,
    0.11,
@@ -94,14 +94,14 @@ window.CLIPS = {
   ]
  },
  "好棒": {
-  "src": "audio/07.m4a",
+  "src": "audio/tianhei/07.m4a",
   "times": [
    0.08,
    0.37
   ]
  },
  "念得真好": {
-  "src": "audio/08.m4a",
+  "src": "audio/tianhei/08.m4a",
   "times": [
    0.08,
    0.25,
@@ -110,7 +110,7 @@ window.CLIPS = {
   ]
  },
  "太厲害了": {
-  "src": "audio/09.m4a",
+  "src": "audio/tianhei/09.m4a",
   "times": [
    0.08,
    0.33,
@@ -119,7 +119,7 @@ window.CLIPS = {
   ]
  },
  "好棒喔": {
-  "src": "audio/10.m4a",
+  "src": "audio/tianhei/10.m4a",
   "times": [
    0.08,
    0.27,
@@ -127,7 +127,7 @@ window.CLIPS = {
   ]
  },
  "差一點點再聽一次": {
-  "src": "audio/11.m4a",
+  "src": "audio/tianhei/11.m4a",
   "times": [
    0.08,
    0.3,
@@ -140,7 +140,7 @@ window.CLIPS = {
   ]
  },
  "沒聽到耶再說一次": {
-  "src": "audio/12.m4a",
+  "src": "audio/tianhei/12.m4a",
   "times": [
    0.08,
    0.21,
@@ -153,7 +153,7 @@ window.CLIPS = {
   ]
  },
  "沒關係我們看下一頁": {
-  "src": "audio/13.m4a",
+  "src": "audio/tianhei/13.m4a",
   "times": [
    0.08,
    0.33,
@@ -167,7 +167,7 @@ window.CLIPS = {
   ]
  },
  "讀完了好棒": {
-  "src": "audio/14.m4a",
+  "src": "audio/tianhei/14.m4a",
   "times": [
    0.08,
    0.27,
@@ -176,4 +176,4 @@ window.CLIPS = {
    1.43
   ]
  }
-};
+});

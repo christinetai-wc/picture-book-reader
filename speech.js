@@ -37,21 +37,31 @@
       else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
       else j++;
     }
-    return { score: dp[0][0] / n, hit };
+    let lastJ = -1;
+    { let a = 0, b = 0; while (a < n && b < m) { if (eq(a, b) && dp[a][b] === dp[a + 1][b + 1] + 1) { lastJ = b; a++; b++; } else if (dp[a + 1][b] >= dp[a][b + 1]) a++; else b++; } }
+    // rest：最後一個對到的字之後，小孩自己說的話（填空用）
+    return { score: dp[0][0] / n, hit, rest: Hc.slice(lastJ + 1).join('') };
   }
 
   // ---------- 辨識 ----------
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let current = null;
   // 回傳 Promise<string[]> 候選句子（可能是空陣列＝沒聽到）
-  function listen({ lang = 'zh-TW', onInterim, maxMs = 9000 } = {}) {
+  // patient：填空句用，小孩會停下來想，所以連續聽，最後一次有聲音後 2.5 秒沒新聲音才結束
+  function listen({ lang = 'zh-TW', onInterim, maxMs, patient = false } = {}) {
+    maxMs = maxMs || (patient ? 15000 : 9000);
     return new Promise((resolve, reject) => {
       if (!SR) return reject({ code: 'unsupported' });
       const rec = new SR();
       current = rec;
-      rec.lang = lang; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
-      let finals = [''], last = '', done = false;
+      rec.lang = lang; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = patient;
+      let finals = [''], last = '', done = false, lastHeard = 0;
+      const t0 = performance.now();
       const timer = setTimeout(() => { try { rec.stop(); } catch (e) {} }, maxMs);
+      const quiet = patient ? setInterval(() => {
+        const now = performance.now();
+        if ((lastHeard && now - lastHeard > 2500) || (!lastHeard && now - t0 > 8000)) { try { rec.stop(); } catch (e) {} }
+      }, 250) : 0;
       rec.onresult = (ev) => {
         let interim = '';
         const alts = [];
@@ -63,19 +73,20 @@
             fixed += res[0].transcript;
           } else interim += res[0].transcript;
         }
-        last = fixed + interim;
+        last = fixed + interim; lastHeard = performance.now();
         if (alts.length) finals = alts;
+        if (patient) finals = [fixed + interim];
         onInterim && onInterim(last);
       };
       const finish = () => {
-        if (done) return; done = true; clearTimeout(timer); current = null;
+        if (done) return; done = true; clearTimeout(timer); clearInterval(quiet); current = null;
         const out = finals.filter(Boolean);
         if (!out.length && last) out.push(last);
         resolve(out);
       };
       rec.onerror = (ev) => {
         if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-          done = true; clearTimeout(timer); current = null; reject({ code: 'not-allowed' });
+          done = true; clearTimeout(timer); clearInterval(quiet); current = null; reject({ code: 'not-allowed' });
         }
       };
       rec.onend = finish;
@@ -93,7 +104,7 @@
   if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
 
   // text：顯示的句子；clip：{src, start, end, times:[每個漢字開始秒數]}；onChar(i)：念到第 i 個漢字
-  function say(text, { clip, rate = 0.85, onChar } = {}) {
+  function say(text, { clip, rate = 0.85, onChar, speaker } = {}) {
     stopSaying();
     clip = clip || (window.CLIPS || {})[hanOnly(text).join('')]; // 有 Gemini 音檔就用；key＝去掉標點的句子
     const token = ++speakToken;
@@ -119,7 +130,7 @@
         if (!('speechSynthesis' in window)) return estimate();
         const u = new SpeechSynthesisUtterance(text);
         const v = zhVoice(); if (v) u.voice = v;
-        u.lang = 'zh-TW'; u.rate = rate; u.pitch = 1.1;
+        u.lang = 'zh-TW'; u.rate = rate; u.pitch = speaker === 'boy' ? 1.5 : speaker === 'mom' ? 1.0 : 1.1;
         let started = 0, gotBoundary = false;
         u.onstart = () => { started = performance.now(); fake(); };
         u.onboundary = (e) => {
