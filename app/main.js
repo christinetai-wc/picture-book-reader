@@ -1,8 +1,8 @@
-// 流程：進頁 → 動畫＋示範朗讀（字一個一個亮）→ 換你念（麥克風）→ 評分 → 過關翻頁
+// 流程：書架 → 封面 → 每頁：動畫＋示範朗讀（字一個一個亮）→ 換你念 → 評分 → 過關翻頁 → 讀完
 (function () {
   const $ = (s) => document.querySelector(s);
   const { W, H, list: SCENES } = window.Scenes;
-  const BOOK = window.BOOK;
+  const BOOKS = window.BOOKS;
 
   // ---------- 設定（家長用，長按右上角齒輪） ----------
   const DEFAULTS = { threshold: 0.8, maxTries: 3, rate: 0.85 };
@@ -22,18 +22,18 @@
     canvas.width = Math.round(cw * dpr); canvas.height = Math.round(ch * dpr);
     fitScale = canvas.width / W;
     const newS = Math.min(2, Math.max(0.5, Math.round(fitScale * 4) / 4));
-    if (newS !== S) { S = newS; if (scene) { scene.build(S); } }
+    if (newS !== S) { S = newS; if (scene) { scene.build(S); scene._S = S; } }
     $('#fx').style.width = cw + 'px'; $('#fx').style.height = ch + 'px';
   }
   function setScene(key, restart = true) {
     const sc = SCENES[key];
-    if (key !== sceneKey || !sc._S || sc._S !== S) { sc.build(S); sc._S = S; }
+    if (sc._S !== S) { sc.build(S); sc._S = S; }
     scene = sc; sceneKey = key;
     if (restart) sceneT0 = performance.now();
   }
   function frame(now) {
     const dt = Math.min(0.05, (now - (lastNow || now)) / 1000); lastNow = now;
-    if (scene) {
+    if (scene && mode !== 'shelf') {
       ctx.setTransform(fitScale, 0, 0, fitScale, 0, 0);
       ctx.fillStyle = scene.bg; ctx.fillRect(0, 0, W, H);
       scene.draw(ctx, (now - sceneT0) / 1000, dt);
@@ -42,46 +42,56 @@
   }
 
   // ---------- 狀態 ----------
-  let pageIdx = -1, segIdx = 0, tries = 0, mode = 'cover', passedPage = false;
-  const PAGES = BOOK.pages;
+  let book = null, PAGES = [], pageIdx = -1, lineIdx = 0, tries = 0, mode = 'shelf', passedPage = false;
   const sentenceEl = $('#sentence'), micBtn = $('#mic'), replayBtn = $('#replay'), nextBtn = $('#next'), heardEl = $('#heard');
-  let charEls = []; // 每段的漢字 span：charEls[seg][k]
+  let charEls = [], blankEls = [];
+  const curLine = () => PAGES[pageIdx].lines[lineIdx];
+  // 示範／評分用的句子：填空句只取「＿」之前
+  const fixedPart = (line) => (line.blank ? line.text.split('＿')[0] : line.text);
 
   function renderSentence() {
-    sentenceEl.innerHTML = ''; charEls = [];
-    if (pageIdx < 0 || pageIdx >= PAGES.length) return;
-    PAGES[pageIdx].segs.forEach((text, si) => {
-      const segEl = document.createElement('span'); segEl.className = 'seg'; segEl.dataset.seg = si;
-      const arr = [];
-      for (const c of text) {
+    sentenceEl.innerHTML = ''; charEls = []; blankEls = [];
+    if (!book || pageIdx < 0 || pageIdx >= PAGES.length) return;
+    PAGES[pageIdx].lines.forEach((line, li) => {
+      const segEl = document.createElement('span'); segEl.className = 'seg'; segEl.dataset.seg = li;
+      if (line.speaker) {
+        const who = document.createElement('span'); who.className = 'who ' + line.speaker; who.textContent = window.SPEAKERS[line.speaker];
+        segEl.appendChild(who);
+      }
+      const arr = []; let blank = null;
+      for (const c of line.text) {
+        if (c === '＿') {
+          if (!blank) { blank = document.createElement('span'); blank.className = 'blank'; blank.textContent = '　　　'; segEl.appendChild(blank); }
+          continue;
+        }
         const sp = document.createElement('span'); sp.textContent = c;
         if (Speech.hanOnly(c).length) { sp.className = 'ch'; arr.push(sp); segEl.appendChild(sp); continue; }
         sp.className = 'punct';
-        // 標點黏住前一個字，避免「。」自己掉到下一行
-        const prev = segEl.lastChild;
-        if (prev && prev.classList.contains('ch')) {
+        const prev = segEl.lastChild; // 標點黏住前一個字，避免「。」自己掉到下一行
+        if (prev && (prev.classList.contains('ch') || prev.classList.contains('blank'))) {
           const nw = document.createElement('span'); nw.className = 'nw';
           segEl.replaceChild(nw, prev); nw.append(prev, sp);
         } else segEl.appendChild(sp);
       }
-      charEls.push(arr); sentenceEl.appendChild(segEl);
-      if (si < PAGES[pageIdx].segs.length - 1) sentenceEl.appendChild(document.createElement('wbr'));
+      charEls.push(arr); blankEls.push(blank); sentenceEl.appendChild(segEl);
     });
     markSegs();
   }
   function markSegs() {
     sentenceEl.querySelectorAll('.seg').forEach((el, i) => {
-      el.classList.toggle('done', i < segIdx); el.classList.toggle('now', i === segIdx);
+      el.classList.toggle('done', i < lineIdx); el.classList.toggle('now', i === lineIdx);
     });
   }
   function karaoke(k) {
-    (charEls[segIdx] || []).forEach((el, i) => { el.classList.toggle('lit', i < k); el.classList.toggle('reading', i === k); });
+    (charEls[lineIdx] || []).forEach((el, i) => { el.classList.toggle('lit', i < k); el.classList.toggle('reading', i === k); });
   }
   function clearMarks() {
-    (charEls[segIdx] || []).forEach((el) => el.classList.remove('lit', 'reading', 'hit', 'miss'));
+    (charEls[lineIdx] || []).forEach((el) => el.classList.remove('lit', 'reading', 'hit', 'miss'));
+    const b = blankEls[lineIdx]; if (b) { b.textContent = '　　　'; b.classList.remove('filled'); }
   }
   function renderDots() {
     const d = $('#dots'); d.innerHTML = '';
+    if (!book) return;
     PAGES.forEach((p, i) => {
       const s = document.createElement('span');
       s.className = 'dot' + (i < pageIdx ? ' done' : '') + (i === pageIdx ? ' now' : '');
@@ -95,38 +105,70 @@
     micBtn.classList.toggle('listening', m === 'listening');
     micBtn.disabled = !(m === 'turn' || m === 'listening');
     replayBtn.disabled = m !== 'turn';
-    nextBtn.hidden = !(passedPage || tries >= cfg.maxTries) || mode === 'cover' || mode === 'end';
+    nextBtn.hidden = !(passedPage || tries >= cfg.maxTries) || ['cover', 'end', 'shelf'].includes(m);
+  }
+
+  // ---------- 書架 ----------
+  function buildShelf() {
+    const shelf = $('#shelfBooks'); shelf.innerHTML = '';
+    BOOKS.forEach((b) => {
+      const btn = document.createElement('button'); btn.className = 'bookBtn'; btn.setAttribute('aria-label', b.title);
+      const c = document.createElement('canvas'); c.width = 360; c.height = 252;
+      const g = c.getContext('2d'), sc = SCENES[b.cover];
+      // 原畫的書要等圖載好才畫縮圖
+      Promise.resolve(sc.ready).then(() => {
+        sc.build(0.3); sc._S = 0.3; g.setTransform(0.3, 0, 0, 0.3, 0, 0); g.fillStyle = sc.bg; g.fillRect(0, 0, W, H); sc.draw(g, 3, 0.016);
+      });
+      const t = document.createElement('span'); t.className = 'bookTitle'; t.textContent = b.title;
+      btn.append(c, t); btn.onclick = () => openBook(b.id);
+      shelf.appendChild(btn);
+    });
+  }
+  function goShelf() {
+    Speech.stopSaying(); Speech.stopListening();
+    book = null; PAGES = []; pageIdx = -1; renderSentence(); renderDots(); setMode('shelf');
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  }
+  function openBook(id) {
+    book = BOOKS.find((b) => b.id === id) || BOOKS[0]; PAGES = book.pages;
+    try { history.replaceState(null, '', '#' + book.id); } catch (e) {}
+    fillJump(); goCover();
   }
 
   // ---------- 頁面流程 ----------
   function goCover() {
     Speech.stopSaying(); Speech.stopListening();
-    pageIdx = -1; passedPage = false; setScene('cover'); renderSentence(); renderDots();
+    pageIdx = -1; passedPage = false; setScene(book.cover); renderSentence(); renderDots();
+    $('#coverTitle').textContent = book.title;
     setMode('cover');
   }
   function goPage(i) {
     Speech.stopSaying(); Speech.stopListening();
     if (i >= PAGES.length) return goEnd();
-    pageIdx = i; segIdx = 0; tries = 0; passedPage = false;
-    try { localStorage.setItem('pbr-page-' + BOOK.id, String(i)); } catch (e) {}
+    pageIdx = i; lineIdx = 0; tries = 0; passedPage = false;
+    try { localStorage.setItem('pbr-page-' + book.id, String(i)); } catch (e) {}
     setScene(PAGES[i].scene); renderSentence(); renderDots(); heardEl.textContent = '';
     setMode('demo');
     setTimeout(() => { if (pageIdx === i && mode === 'demo') demo(); }, 900);
   }
   function goEnd() {
-    pageIdx = PAGES.length; setScene('end'); renderSentence(); renderDots(); setMode('end');
+    pageIdx = PAGES.length; setScene(book.cover); renderSentence(); renderDots(); setMode('end');
     celebrate(true);
     Speech.say('讀完了！好棒！', { rate: cfg.rate });
   }
 
   async function demo() {
-    const myPage = pageIdx, mySeg = segIdx;
+    const myPage = pageIdx, myLine = lineIdx, line = curLine();
     setMode('demo'); clearMarks(); heardEl.textContent = '';
-    const text = PAGES[pageIdx].segs[segIdx];
-    await Speech.say(text, { rate: cfg.rate, onChar: karaoke });
-    if (pageIdx !== myPage || segIdx !== mySeg || mode !== 'demo') return;
-    await sleep(350);
-    karaoke(-1); (charEls[segIdx] || []).forEach((el) => el.classList.add('lit'));
+    await Speech.say(fixedPart(line), { rate: cfg.rate, onChar: karaoke, speaker: line.speaker });
+    if (pageIdx !== myPage || lineIdx !== myLine || mode !== 'demo') return;
+    karaoke(-1); (charEls[lineIdx] || []).forEach((el) => el.classList.add('lit'));
+    if (line.blank) {
+      blankEls[lineIdx] && blankEls[lineIdx].classList.add('ask');
+      await sleep(300);
+      await Speech.say(window.BLANK_CUE, { rate: cfg.rate });
+      if (pageIdx !== myPage || lineIdx !== myLine || mode !== 'demo') return;
+    } else await sleep(350);
     chime([660, 880]);
     setMode('turn');
   }
@@ -135,13 +177,13 @@
     if (mode === 'listening') { Speech.stopListening(); return; }
     if (mode !== 'turn') return;
     Speech.stopSaying();
-    if (!Speech.canListen) { // 不能辨識的瀏覽器：家長聽，按一下就算過
-      return judge(1, null);
-    }
+    if (!Speech.canListen) return judge({ score: 1, hit: null, rest: '' }); // 不能辨識：大人聽，按一下就算過
+    const line = curLine();
     setMode('listening'); heardEl.textContent = '';
     let alts;
     try {
-      alts = await Speech.listen({ onInterim: (s) => (heardEl.textContent = s) });
+      // 填空句要等小孩說完（他會停下來想），所以用「耐心」模式
+      alts = await Speech.listen({ patient: !!line.blank, onInterim: (s) => (heardEl.textContent = s) });
     } catch (e) {
       setMode('turn');
       heardEl.textContent = e.code === 'not-allowed' ? '要先允許使用麥克風喔' : '麥克風打不開，再按一次';
@@ -152,16 +194,18 @@
       Speech.say('沒聽到耶，再說一次', { rate: cfg.rate });
       return;
     }
-    const text = PAGES[pageIdx].segs[segIdx];
     let best = { score: -1 }, bestAlt = '';
-    for (const a of alts) { const r = Speech.score(text, a); if (r.score > best.score) { best = r; bestAlt = a; } }
+    for (const a of alts) { const r = Speech.score(fixedPart(line), a); if (r.score > best.score) { best = r; bestAlt = a; } }
     heardEl.textContent = '聽到：' + bestAlt;
-    judge(best.score, best.hit);
+    judge(best);
   }
 
-  async function judge(sc, hit) {
-    const els = charEls[segIdx] || [];
+  async function judge(res) {
+    const { score: sc, hit, rest } = res, line = curLine();
+    const els = charEls[lineIdx] || [];
     els.forEach((el, i) => { el.classList.remove('lit', 'reading'); el.classList.add(!hit || hit[i] ? 'hit' : 'miss'); });
+    const b = blankEls[lineIdx];
+    if (b) { b.classList.remove('ask'); if (rest) { b.textContent = rest; b.classList.add('filled'); } }
     setMode('result');
     if (sc >= cfg.threshold) {
       celebrate(sc >= 0.95);
@@ -171,15 +215,15 @@
       await Speech.say(pickPraise(), { rate: cfg.rate });
       if (pageIdx !== myPage) return;
       els.forEach((el) => { el.classList.remove('miss'); el.classList.add('hit'); });
-      segIdx++; tries = 0;
-      if (segIdx < PAGES[pageIdx].segs.length) { markSegs(); demo(); }
-      else { passedPage = true; segIdx = PAGES[pageIdx].segs.length - 1; setMode('result'); await sleep(700); if (pageIdx === myPage) goPage(pageIdx + 1); }
+      lineIdx++; tries = 0;
+      if (lineIdx < PAGES[pageIdx].lines.length) { markSegs(); demo(); }
+      else { passedPage = true; lineIdx = PAGES[pageIdx].lines.length - 1; setMode('result'); await sleep(line.blank ? 1400 : 700); if (pageIdx === myPage) goPage(pageIdx + 1); }
     } else {
       tries++;
-      const myPage = pageIdx, mySeg = segIdx;
+      const myPage = pageIdx, myLine = lineIdx;
       await sleep(500);
       await Speech.say(tries >= cfg.maxTries ? '沒關係，我們看下一頁' : '差一點點，再聽一次', { rate: cfg.rate });
-      if (pageIdx !== myPage || segIdx !== mySeg) return;
+      if (pageIdx !== myPage || lineIdx !== myLine) return;
       if (tries >= cfg.maxTries) { setMode('result'); nextBtn.hidden = false; nextBtn.classList.add('bounce'); return; }
       demo();
     }
@@ -188,12 +232,9 @@
   const pickPraise = () => PRAISE[Math.floor(Math.random() * PRAISE.length)];
 
   function onNext() {
-    if (mode === 'cover') return;
+    if (mode === 'cover' || mode === 'shelf') return;
     nextBtn.classList.remove('bounce');
-    if (pageIdx < PAGES.length - 1 && segIdx < PAGES[pageIdx].segs.length - 1 && !passedPage) {
-      // 跳過這一段
-      segIdx++; tries = 0; markSegs(); setMode('demo'); demo(); return;
-    }
+    if (!passedPage && lineIdx < PAGES[pageIdx].lines.length - 1) { lineIdx++; tries = 0; markSegs(); demo(); return; }
     goPage(pageIdx + 1);
   }
 
@@ -235,6 +276,11 @@
     $('#srNote').textContent = Speech.canListen ? '這台裝置可以語音辨識。' : '⚠️ 這個瀏覽器不能語音辨識：小孩念完按麥克風就直接過關（請大人聽）。';
     d.showModal();
   }
+  function fillJump() {
+    const sel = $('#jump'); sel.innerHTML = '<option value="" selected disabled>選一頁</option><option value="-1">封面</option>';
+    if (!book) return;
+    PAGES.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = '第 ' + (i + 1) + ' 頁：' + p.lines.map((l) => l.text).join(''); sel.appendChild(o); });
+  }
   function bindSettings() {
     const g = $('#gear'); let timer = null;
     const start = (e) => { e.preventDefault(); g.classList.add('hold'); timer = setTimeout(() => { g.classList.remove('hold'); openSettings(); }, 1000); };
@@ -248,35 +294,37 @@
       e.preventDefault();
       const s = $('#simText').value; $('#settings').close();
       if (mode !== 'turn') { heardEl.textContent = '（等麥克風亮起來再測）'; return; }
-      const r = Speech.score(PAGES[pageIdx].segs[segIdx], s);
+      const r = Speech.score(fixedPart(curLine()), s);
       heardEl.textContent = '測試：' + s + '（' + Math.round(r.score * 100) + '%）';
-      judge(r.score, r.hit);
+      judge(r);
     };
-    $('#jump').onchange = (e) => { const v = +e.target.value; $('#settings').close(); v < 0 ? goCover() : goPage(v); };
-    const sel = $('#jump');
-    PAGES.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = '第 ' + (i + 1) + ' 頁：' + p.segs.join(''); sel.appendChild(o); });
+    $('#jump').onchange = (e) => { const v = +e.target.value; $('#settings').close(); if (!book) return; v < 0 ? goCover() : goPage(v); };
   }
 
   // ---------- 開始 ----------
   function init() {
-    resize(); setScene('cover'); requestAnimationFrame(frame);
+    buildShelf();
+    if (window.PhotoScenes) window.PhotoScenes.prefetch();
+    resize(); requestAnimationFrame(frame);
     window.addEventListener('resize', () => { resize(); });
     $('#start').onclick = () => {
       // iOS：第一次點擊時解鎖聲音
       chime([440]);
       if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(''); speechSynthesis.speak(u); }
       $('#start').disabled = true;
-      // 等書名念完再翻頁（之前固定等 1.2 秒，會把「天黑了」切掉）
-      Speech.say(BOOK.title, { rate: cfg.rate }).then(() => sleep(300)).then(() => { $('#start').disabled = false; goPage(0); });
+      // 等書名念完再翻頁
+      Speech.say(book.title, { rate: cfg.rate, speaker: book.id === 'rain' ? 'mom' : undefined })
+        .then(() => sleep(300)).then(() => { $('#start').disabled = false; goPage(0); });
     };
     $('#again').onclick = () => goPage(0);
     micBtn.onclick = onMic;
     replayBtn.onclick = () => { if (mode === 'turn') demo(); };
     nextBtn.onclick = onNext;
-    $('#home').onclick = goCover;
+    $('#home').onclick = goShelf; // 回書架（選三本書的地方）
     bindSettings();
-    goCover();
-    window.PBR = { goPage, goCover, goEnd, setScene }; // 除錯用
+    const want = location.hash.slice(1);
+    if (BOOKS.some((b) => b.id === want)) openBook(want); else goShelf();
+    window.PBR = { goPage, goCover, goEnd, goShelf, openBook, setScene }; // 除錯用
   }
   init();
 })();

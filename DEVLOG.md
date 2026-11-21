@@ -1,5 +1,26 @@
 # DEVLOG
 
+### 2026-11-21 下雨了、看一看想一想上線
+- 人物貼紙改成 WebP（11.6 MB → 1.7 MB），iPad 載入比較快
+- 原畫版、卡通版程式移到 archive/，整頁原畫不上傳
+- 左上房子按鈕一律回書架
+- 推上 GitHub Pages
+
+### 2026-11-20 下雨了改成拼貼風（只在本機）
+- 使用者覺得原畫＋疊效果還是不夠 → 改成「原畫人物剪下來＋電腦畫的剪紙背景」
+- tools/cutout.swift：macOS Vision 主體去背；tools/make_cutouts.py：先用 OpenCV 擦掉印在圖上的字、可先裁範圍分開黏在一起的人物，輸出 app/img/cut/*.png
+- app/collage.js：剪紙背景（紙紋、陰影、剪刀邊）＋人物貼紙（跳、晃、走進來、轉圈、搖擺、拍翅膀、發抖、啜泣）；下雨了 9 頁、看一看 10 頁全部完成
+- make_cutouts 支援：合併全部主體（pick=0）、剪完清掉黏到的雜物；游泳那頁泳衣去背抓不到，改用剪紙畫
+- photo.js 已被 collage.js 全部覆蓋，暫時保留當備用
+
+### 2026-11-20 加入下雨了、看一看想一想（原畫版，只在本機）
+- 改成三本書：書架首頁、books.js（一頁一句；speaker 對話、blank 填空）
+- 先用程式重畫成扁平卡通（cartoon.js），使用者覺得跟原書差太多 → 改用原書插畫：tools/make_pages.py 從 PDF 裁成 10:7、避開印字，左右模糊補邊；photo.js 疊動畫（雨、水波、水花、眼淚、汗、音符、雪、極光、愛心、叫聲線、時鐘秒針）＋輕微鏡頭呼吸
+- 填空句：示範只念前半句，再提示「換你說說看」；辨識用耐心模式（停 2.5 秒才結束）；小孩說的答案填進空格
+- 音檔改成每本一份 clips-<書>.js、app/audio/<書>/；寫好兩本的 Gemini 音稿
+- script 網址加版本號避免瀏覽器用舊檔
+- ⚠️ 原畫還沒推上 GitHub Pages（要先確認作者是否同意公開）
+
 ### 2026-11-20 發布到 GitHub Pages
 - 公開 repo christinetai-wc/picture-book-reader，app/ 用 gh-pages 分支發布（tools/deploy.sh）
 - 原書掃描檔（source/、ref/）和原始 wav 不上傳

@@ -5,16 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d1838">
-<title>天黑了</title>
-<link rel="stylesheet" href="style.css">
+<title>繪本跟念</title>
+<link rel="stylesheet" href="style.css?v=1121a">
 </head>
-<body data-mode="cover">
+<body data-mode="shelf">
+<div id="shelf">
+  <h1>繪本跟念</h1>
+  <div id="shelfBooks"></div>
+</div>
 <div id="app">
   <div id="stageWrap">
     <canvas id="stage" aria-label="插畫"></canvas>
     <div id="fx" aria-hidden="true"></div>
-    <div id="coverTitle">天黑了</div>
-    <button id="home" class="corner left" aria-label="回封面">
+    <div id="coverTitle"></div>
+    <button id="home" class="corner left" aria-label="回書架">
       <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h5v-5.5h3V20h5V9.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <button id="gear" class="corner right" aria-label="家長設定（長按）">
@@ -63,10 +67,14 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.26.0/dist/index.js"></script>
-<script src="book.js"></script>
-<script src="clips.js" onerror="0"></script>
-<script src="scenes.js"></script>
-<script src="speech.js"></script>
-<script src="main.js"></script>
+<script src="books.js?v=1121a"></script>
+<script>window.CLIPS = {};</script>
+<script src="clips-tianhei.js?v=1121a" onerror="0"></script>
+<script src="clips-rain.js?v=1121a" onerror="0"></script>
+<script src="clips-look.js?v=1121a" onerror="0"></script>
+<script src="scenes.js?v=1121a"></script>
+<script src="collage.js?v=1121a"></script>
+<script src="speech.js?v=1121a"></script>
+<script src="main.js?v=1121a"></script>
 </body>
 </html>

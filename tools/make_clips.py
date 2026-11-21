@@ -1,16 +1,19 @@
-"""把 Gemini 整段 wav 切成每句 m4a，並用 Whisper 逐字時間產生 app/clips.js。
-用法：python tools/make_clips.py audio/gemini/tianhei.wav whisper.json
+"""把 Gemini 整段 wav 切成每句 m4a，並用 Whisper 逐字時間產生 app/clips-<書>.js。
+用法：python tools/make_clips.py <書 id> audio/gemini/<書 id>.wav whisper.json
+句子順序讀 audio/gemini-script-<書 id>.md（「媽媽：」這類說話者前綴會去掉）
 whisper.json 由：whisper X.wav --model large-v3-turbo --language zh --word_timestamps True --output_format json
 """
 import json, re, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LINES = [l.strip() for l in (ROOT / 'audio/gemini-script.md').read_text().split('---', 1)[1].splitlines()
-         if l.strip() and not l.startswith('Style') and not l.startswith('<')]
+BOOK = sys.argv[1]
+LINES = [re.sub(r'^(媽媽|弟弟|旁白)\s*[:：]\s*', '', l.strip())
+         for l in (ROOT / f'audio/gemini-script-{BOOK}.md').read_text().split('---', 1)[1].splitlines()
+         if l.strip() and not l.startswith('Style') and not l.startswith('<') and not l.startswith('（')]
 han = lambda s: re.findall(r'\p{Han}', s) if False else [c for c in s if '一' <= c <= '鿿']
 
-wav, wj = sys.argv[1], sys.argv[2]
+wav, wj = sys.argv[2], sys.argv[3]
 words = [w for s in json.load(open(wj))['segments'] for w in s['words']]
 chars = []  # (char, start, end)
 for w in words:
@@ -29,7 +32,7 @@ sil_start = [float(x) for x in re.findall(r'silence_start: ([\d.]+)', out)]
 need = sum(len(han(l)) for l in LINES)
 assert need == len(chars), f'字數不合：稿 {need}、Whisper {len(chars)}'
 
-clips_dir = ROOT / 'app/audio'; clips_dir.mkdir(exist_ok=True)
+clips_dir = ROOT / 'app/audio' / BOOK; clips_dir.mkdir(parents=True, exist_ok=True)
 
 def line_start(cs):
     first = cs[0][1]
@@ -52,9 +55,9 @@ for n, line in enumerate(LINES, 1):
     subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', wav, '-ss', f'{a:.3f}', '-to', f'{b:.3f}',
                     '-af', 'afade=t=in:d=0.03', '-c:a', 'aac', '-b:a', '96k', str(clips_dir / name)], check=True)
     times = [round(max(0, max(c[1], t0) - a), 2) for c in cs]
-    clips[''.join(han(line))] = {'src': 'audio/' + name, 'times': times}
+    clips[''.join(han(line))] = {'src': f'audio/{BOOK}/' + name, 'times': times}
     print(n, line, f'{a:.2f}-{b:.2f}', times[:4], '…')
 
-(ROOT / 'app/clips.js').write_text('// 由 tools/make_clips.py 產生，不要手改\nwindow.CLIPS = ' +
-                                    json.dumps(clips, ensure_ascii=False, indent=1) + ';\n')
-print('寫入 app/clips.js，共', len(clips), '句')
+(ROOT / f'app/clips-{BOOK}.js').write_text('// 由 tools/make_clips.py 產生，不要手改\nObject.assign(window.CLIPS, ' +
+                                    json.dumps(clips, ensure_ascii=False, indent=1) + ');\n')
+print(f'寫入 app/clips-{BOOK}.js，共', len(clips), '句')

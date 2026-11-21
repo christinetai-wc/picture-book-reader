@@ -97,3 +97,24 @@ dialog button { font-size: 16px; padding: 8px 16px; border-radius: 10px; border:
 #closeSettings { margin-top: 8px; width: 100%; }
 
 .nw { white-space: nowrap; }
+
+/* 書架 */
+#shelf { position: fixed; inset: 0; z-index: 5; background: radial-gradient(120% 90% at 50% 0%, #2b4a9e 0%, #0d1838 75%);
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4vmin; padding: 24px 16px; overflow-y: auto; }
+body[data-mode="shelf"] #shelf { display: flex; }
+#shelf h1 { margin: 0; color: #fff; font-size: clamp(32px, 7vmin, 60px); letter-spacing: .12em; text-shadow: 0 4px 0 #1d3580; }
+#shelfBooks { display: flex; flex-wrap: wrap; gap: 4vmin; justify-content: center; }
+.bookBtn { border: 0; padding: 0; background: #fdf6e3; border-radius: 22px; overflow: hidden; cursor: pointer; width: min(80vw, 300px);
+  box-shadow: 0 8px 0 #c9bfa4, 0 14px 30px rgba(0,0,0,.35); transition: transform .15s; display: flex; flex-direction: column; }
+.bookBtn:active { transform: translateY(4px) scale(.98); }
+.bookBtn canvas { width: 100%; height: auto; display: block; }
+.bookTitle { font-size: clamp(22px, 4.5vmin, 32px); font-weight: 800; color: var(--ink); padding: 10px 0 14px; letter-spacing: .08em; }
+
+/* 對話：誰在說話 */
+.who { display: inline-block; font-size: .5em; vertical-align: middle; padding: .15em .6em; border-radius: 1em; margin-right: .4em; color: #fff; letter-spacing: .1em; transform: translateY(-.15em); }
+.who.mom { background: #e48a9a; } .who.boy { background: #6c8fd6; }
+
+/* 填空 */
+.blank { display: inline-block; min-width: 3em; border-bottom: .12em solid #b9ad8f; margin: 0 .1em; text-align: center; color: var(--hit); transition: all .3s; }
+.blank.ask { border-color: var(--lit); background: rgba(232,145,58,.12); border-radius: .2em .2em 0 0; animation: breathe 1.2s ease-in-out infinite; }
+.blank.filled { border-color: var(--hit); animation: pop .4s; }
